@@ -1,0 +1,73 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "outDir": "./dist",
+        "rootDir": "./src",
+        // Strict TypeScript settings
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        // Module resolution
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        // Emit options
+        "declaration": true,
+        "sourceMap": true,
+        "removeComments": false,
+        // Path mapping
+        "baseUrl": "./src",
+        "paths": {
+            "@/*": [
+                "*"
+            ],
+            "@/config/*": [
+                "config/*"
+            ],
+            "@/models/*": [
+                "models/*"
+            ],
+            "@/services/*": [
+                "services/*"
+            ],
+            "@/controllers/*": [
+                "controllers/*"
+            ],
+            "@/routes/*": [
+                "routes/*"
+            ],
+            "@/utils/*": [
+                "utils/*"
+            ],
+            "@/types/*": [
+                "types/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+    ],
+    "ts-node": {
+        "require": [
+            "tsconfig-paths/register"
+        ]
+    }
+}
