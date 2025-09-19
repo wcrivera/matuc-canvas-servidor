@@ -8,14 +8,15 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import { config } from 'dotenv';
-import { dbConnection } from './config/database';
-import { configurarRutas } from './routes';
+import { dbConnection, setupDatabaseEvents, setupDevelopmentLogging } from './config/database';
+import { configurarRutas, logRoutes } from './routes';
 
 // Cargar variables de entorno
 config();
 
 /**
  * Clase del servidor Express - Compatible con estructura existente
+ * Ahora integrada con los nuevos archivos de configuración
  */
 export default class Server {
   public app: express.Application;
@@ -25,6 +26,7 @@ export default class Server {
     this.app = express();
     this.port = process.env.PORT || '3000';
 
+    // Inicializar en el orden correcto
     this.initializeMiddlewares();
     this.connectDatabase();
     this.initializeRoutes();
@@ -56,27 +58,37 @@ export default class Server {
       origin: corsOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     }));
 
-    // Rate limiting básico (solo para APIs)
+    // Rate limiting
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutos
-      max: 100, // 100 requests por ventana
+      max: 100, // límite de 100 requests por ventana por IP
       message: {
-        error: 'Demasiadas solicitudes, intenta de nuevo más tarde'
-      }
+        ok: false,
+        error: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
     });
-    this.app.use('/api/', limiter);
+    this.app.use(limiter);
 
-    // Logging
+    // Logger de requests
     if (process.env.NODE_ENV === 'development') {
       this.app.use(morgan('dev'));
+    } else {
+      this.app.use(morgan('combined'));
     }
 
-    // Body parser
+    // Parseo de JSON y URL encoded
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Trust proxy (para Heroku, Railway, etc.)
+    this.app.set('trust proxy', 1);
+
+    console.log('✅ Middlewares configurados');
   }
 
   /**
@@ -84,9 +96,18 @@ export default class Server {
    */
   private async connectDatabase(): Promise<void> {
     try {
+      // Configurar eventos de la base de datos
+      setupDatabaseEvents();
+
+      // Configurar logging de desarrollo si está habilitado
+      setupDevelopmentLogging();
+
+      // Conectar a MongoDB
       await dbConnection();
+
+      console.log('✅ Base de datos inicializada');
     } catch (error) {
-      console.error('❌ Error fatal: No se pudo conectar a la base de datos');
+      console.error('❌ Error al inicializar la base de datos:', error);
       process.exit(1);
     }
   }
@@ -95,97 +116,50 @@ export default class Server {
    * Configurar rutas
    */
   private initializeRoutes(): void {
-    // ====================================================
-    // ENDPOINTS BÁSICOS DEL SISTEMA
-    // ====================================================
-
-    // Health check
-    this.app.get('/health', (req: express.Request, res: express.Response) => {
-      res.status(200).json({
-        status: 'OK',
-        message: 'MATUC LTI Exercise Composer Backend',
-        timestamp: new Date().toISOString(),
-        version: '1.0.0',
-        environment: process.env.NODE_ENV || 'development'
-      });
-    });
-
-    // Info del sistema
-    this.app.get('/info', (req: express.Request, res: express.Response) => {
-      res.json({
-        name: 'MATUC LTI Exercise Composer',
-        version: '1.0.0',
-        description: 'Backend para Exercise Composer con preguntas anidadas',
-        author: 'Wolfgang Rivera',
-        endpoints: {
-          health: '/health',
-          info: '/info',
-          api_test: '/api/lti/test',
-          exercise_set: '/api/exercise-set',
-          nested_question: '/api/nested-question',
-          student_attempt: '/api/student-attempt',
-          question_response: '/api/question-response'
-        },
-        database: 'MongoDB',
-        features: ['LTI 1.3', 'Exercise Composer', 'Nested Questions'],
-        status: 'Phase 5 Complete - Routes Active'
-      });
-    });
-
-    // ====================================================
-    // RUTAS LTI EXERCISE COMPOSER
-    // ====================================================
-
-    // Configurar todas las rutas LTI
+    // Configurar todas las rutas usando el archivo routes/index.ts
     configurarRutas(this.app);
 
-    // ====================================================
-    // MANEJO DE RUTAS NO ENCONTRADAS
-    // ====================================================
+    // Log de rutas en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      logRoutes(this.app);
+    }
 
-    // 404 handler
-    this.app.use('*', (req: express.Request, res: express.Response) => {
-      res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
-        method: req.method,
-        timestamp: new Date().toISOString(),
-        available_endpoints: [
-          'GET /health',
-          'GET /info',
-          'GET /api/lti/test',
-          'POST /api/exercise-set',
-          'POST /api/nested-question',
-          'POST /api/student-attempt',
-          'POST /api/question-response'
-        ]
-      });
-    });
+    console.log('✅ Rutas configuradas');
   }
 
   /**
-   * Configurar manejo de errores
+   * Configurar manejo global de errores
    */
   private initializeErrorHandling(): void {
-    this.app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction): void => {
-      console.error('❌ Error del servidor:', error);
+    // Middleware para manejo de errores no capturados
+    this.app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error('❌ Error no capturado:', error);
 
-      if (res.headersSent) {
-        return next(error);
-      }
+      // En desarrollo, mostrar stack trace
+      const response = {
+        ok: false,
+        message: 'Error interno del servidor',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'INTERNAL_SERVER_ERROR',
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+      };
 
-      res.status(500).json({
-        error: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : error.message,
-        timestamp: new Date().toISOString()
-      });
+      res.status(500).json(response);
     });
-  }
 
-  /**
-   * Método execute() para compatibilidad con estructura existente
-   */
-  public execute(): void {
-    this.listen();
+    // Manejo de promesas rechazadas no capturadas
+    process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+      console.error('❌ Promesa rechazada no capturada:', promise, 'razón:', reason);
+      // En producción, podríamos querer cerrar el servidor gracefully
+      // process.exit(1);
+    });
+
+    // Manejo de excepciones no capturadas
+    process.on('uncaughtException', (error: Error) => {
+      console.error('❌ Excepción no capturada:', error);
+      process.exit(1);
+    });
+
+    console.log('✅ Manejo de errores configurado');
   }
 
   /**
@@ -193,31 +167,38 @@ export default class Server {
    */
   public listen(): void {
     this.app.listen(this.port, () => {
-      this.showStartupInfo();
+      console.log('\n🚀 ===============================================');
+      console.log('🎯 MATUC LTI EXERCISE COMPOSER - SERVIDOR ACTIVO');
+      console.log('🚀 ===============================================');
+      console.log(`📍 Puerto: ${this.port}`);
+      console.log(`🌐 URL: http://localhost:${this.port}`);
+      console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Endpoints disponibles:`);
+      console.log(`   🏠 http://localhost:${this.port}/`);
+      console.log(`   ❤️  http://localhost:${this.port}/api/health`);
+      console.log(`   ℹ️  http://localhost:${this.port}/api/info`);
+      console.log(`   📝 http://localhost:${this.port}/api/exercise-sets`);
+      console.log(`   ❓ http://localhost:${this.port}/api/questions`);
+      console.log('🚀 ===============================================\n');
     });
   }
 
   /**
-   * Mostrar información de inicio
+   * Cerrar servidor gracefully
    */
-  private showStartupInfo(): void {
-    console.log('\n🚀 ===============================================');
-    console.log('   MATUC-LTI EXERCISE COMPOSER INICIADO');
-    console.log('===============================================');
-    console.log(`📍 Puerto: ${this.port}`);
-    console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 URL Local: http://localhost:${this.port}`);
-    console.log('\n📋 ENDPOINTS LTI DISPONIBLES:');
-    console.log(`   Health Check:      http://localhost:${this.port}/health`);
-    console.log(`   Info Sistema:      http://localhost:${this.port}/info`);
-    console.log(`   Test LTI:          http://localhost:${this.port}/api/lti/test`);
-    console.log(`   Exercise Sets:     http://localhost:${this.port}/api/exercise-set`);
-    console.log(`   Nested Questions:  http://localhost:${this.port}/api/nested-question`);
-    console.log(`   Student Attempts:  http://localhost:${this.port}/api/student-attempt`);
-    console.log(`   Question Response: http://localhost:${this.port}/api/question-response`);
-    console.log('\n💡 PRUEBAS RÁPIDAS:');
-    console.log('   curl http://localhost:3000/health');
-    console.log('   curl http://localhost:3000/api/lti/test');
-    console.log('===============================================\n');
+  public async close(): Promise<void> {
+    console.log('🔄 Cerrando servidor...');
+    // Aquí podríamos cerrar conexiones, limpiar recursos, etc.
+    console.log('✅ Servidor cerrado');
   }
+}
+
+// ============================================================================
+// INICIALIZACIÓN DEL SERVIDOR
+// ============================================================================
+
+// Solo inicializar si este archivo es ejecutado directamente
+if (require.main === module) {
+  const server = new Server();
+  server.listen();
 }
