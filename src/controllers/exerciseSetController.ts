@@ -1,447 +1,370 @@
 // ============================================================================
-// CONTROLADOR EXERCISE SET - MATUC LTI EXERCISE COMPOSER
+// SERVICIO EXERCISE SET - MATUC LTI EXERCISE COMPOSER BACKEND
 // ============================================================================
-// Archivo: src/controllers/exerciseSetController.ts
-// Propósito: CRUD básico para Exercise Sets
-// Compatible con tipos compartidos y estructura frontend
+// Archivo: src/services/ExerciseSetController.ts  
+// Propósito: Lógica de negocio para Exercise Sets SIN datos de muestra
+// Compatible con controladores y estructura limpia
 
-import { Request, Response } from 'express';
 import {
-    ApiResponse,
     ExerciseSetBase,
     CreateExerciseSetRequest,
     PaginatedResponse,
-    ValidationError,
-    ValidationErrors
+    ApiResponse
 } from '../types/shared';
 
 /**
- * Obtener todos los exercise sets
- * GET /api/exercise-sets
+ * Servicio para Exercise Sets
+ * Maneja la lógica de negocio separada del controlador
  */
-export const obtenerExerciseSets = async (req: Request, res: Response): Promise<void> => {
-    try {
-        // Parámetros de paginación
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = parseInt(req.query.limit as string) || 10;
-        const skip = (page - 1) * limit;
+export class ExerciseSetController {
 
-        // TODO: Cuando tengamos el modelo, reemplazar con consulta real
-        // const exerciseSets = await ExerciseSet.find({ activo: true })
-        //   .populate('autorId', 'nombre apellido email')
-        //   .sort({ fechaCreacion: -1 })
-        //   .skip(skip)
-        //   .limit(limit);
-        // const total = await ExerciseSet.countDocuments({ activo: true });
+    /**
+     * Obtener todos los exercise sets con paginación
+     */
+    static async obtenerTodos(params: {
+        page: number;
+        limit: number;
+        estado?: string;
+        search?: string;
+    }): Promise<PaginatedResponse<ExerciseSetBase>> {
+        try {
+            const { page, limit } = params;
 
-        // TEMPORAL: Datos de prueba para testing
-        const exerciseSetsDemo: ExerciseSetBase[] = [
-            {
-                id: '507f1f77bcf86cd799439011',
-                titulo: 'Ejercicios de Cálculo I',
-                descripcion: 'Ejercicios básicos de límites y derivadas',
-                instrucciones: 'Resuelve cada pregunta paso a paso',
+            // TODO: Cuando tengamos el modelo real
+            // const query: any = { activo: true };
+            // 
+            // if (params.estado && params.estado !== 'all') {
+            //     query.estado = params.estado;
+            // }
+            // 
+            // if (params.search) {
+            //     query.$or = [
+            //         { titulo: { $regex: params.search, $options: 'i' } },
+            //         { descripcion: { $regex: params.search, $options: 'i' } }
+            //     ];
+            // }
+            // 
+            // const skip = (page - 1) * limit;
+            // const exerciseSets = await ExerciseSet.find(query)
+            //     .populate('autorId', 'nombre apellido email')
+            //     .sort({ fechaCreacion: -1 })
+            //     .skip(skip)
+            //     .limit(limit);
+            // const total = await ExerciseSet.countDocuments(query);
+
+            // TEMPORAL: Array vacío mientras no tengamos modelo
+            const exerciseSets: ExerciseSetBase[] = [];
+            const total = 0;
+            const totalPages = Math.ceil(total / limit);
+
+            return {
+                items: exerciseSets,
+                total,
+                page,
+                limit,
+                totalPages
+            };
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.obtenerTodos:', error);
+            throw new Error('Error al obtener exercise sets');
+        }
+    }
+
+    /**
+     * Obtener exercise set por ID
+     */
+    static async obtenerPorId(id: string): Promise<ExerciseSetBase | null> {
+        try {
+            // Validación básica
+            if (!id || id.length !== 24) {
+                throw new Error('ID de exercise set inválido');
+            }
+
+            // TODO: Cuando tengamos el modelo real
+            // const exerciseSet = await ExerciseSet.findById(id)
+            //     .populate('autorId', 'nombre apellido email')
+            //     .populate('preguntas');
+            // 
+            // if (!exerciseSet || !exerciseSet.activo) {
+            //     return null;
+            // }
+            // 
+            // return exerciseSet;
+
+            // TEMPORAL: Retornar null mientras no tengamos modelo
+            return null;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.obtenerPorId:', error);
+            throw new Error('Error al obtener exercise set');
+        }
+    }
+
+    /**
+     * Crear nuevo exercise set
+     */
+    static async crear(data: CreateExerciseSetRequest, autorId: string): Promise<ExerciseSetBase> {
+        try {
+            // Validación de datos
+            this.validarDatosCreacion(data);
+
+            // TODO: Cuando tengamos el modelo real
+            // const nuevoExerciseSet = new ExerciseSet({
+            //     titulo: data.titulo.trim(),
+            //     descripcion: data.descripcion.trim(),
+            //     instrucciones: data.instrucciones?.trim(),
+            //     configuracion: data.configuracion,
+            //     cursoId: data.cursoId,
+            //     autorId: autorId,
+            //     estado: 'draft',
+            //     activo: true,
+            //     publicado: false,
+            //     preguntas: []
+            // });
+            // 
+            // const exerciseSetCreado = await nuevoExerciseSet.save();
+            // return exerciseSetCreado;
+
+            // TEMPORAL: Simular creación exitosa
+            const exerciseSetCreado: ExerciseSetBase = {
+                id: this.generarId(),
+                titulo: data.titulo.trim(),
+                descripcion: data.descripcion.trim(),
                 preguntas: [],
-                configuracion: {
-                    intentos: 3,
-                    tiempo: 60,
-                    mostrarRespuestas: true,
-                    mostrarExplicaciones: true,
-                    navegacionLibre: true,
-                    autoguardado: true
-                },
-                estado: 'published',
-                activo: true,
-                publicado: true,
-                fechaCreacion: new Date(),
-                fechaActualizacion: new Date(),
-                autorId: '507f1f77bcf86cd799439012',
-                cursoId: '507f1f77bcf86cd799439013'
-            },
-            {
-                id: '507f1f77bcf86cd799439014',
-                titulo: 'Álgebra Lineal - Matrices',
-                descripcion: 'Operaciones con matrices y determinantes',
-                instrucciones: 'Calcula paso a paso cada operación',
-                preguntas: [],
-                configuracion: {
-                    intentos: 2,
-                    tiempo: 45,
-                    mostrarRespuestas: false,
-                    mostrarExplicaciones: true,
-                    navegacionLibre: false,
-                    autoguardado: true
-                },
+                configuracion: data.configuracion,
                 estado: 'draft',
                 activo: true,
                 publicado: false,
                 fechaCreacion: new Date(),
                 fechaActualizacion: new Date(),
-                autorId: '507f1f77bcf86cd799439015',
-                cursoId: '507f1f77bcf86cd799439013'
+                autorId: autorId,
+                ...(data.instrucciones && { instrucciones: data.instrucciones.trim() }),
+                ...(data.cursoId && { cursoId: data.cursoId })
+            };
+
+            return exerciseSetCreado;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.crear:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Actualizar exercise set existente
+     */
+    static async actualizar(id: string, data: Partial<CreateExerciseSetRequest>): Promise<ExerciseSetBase | null> {
+        try {
+            // Validación básica
+            if (!id || id.length !== 24) {
+                throw new Error('ID de exercise set inválido');
             }
-        ];
 
-        const total = exerciseSetsDemo.length;
-        const totalPages = Math.ceil(total / limit);
+            // TODO: Cuando tengamos el modelo real
+            // const exerciseSetActualizado = await ExerciseSet.findByIdAndUpdate(
+            //     id,
+            //     {
+            //         ...data,
+            //         fechaActualizacion: new Date()
+            //     },
+            //     { new: true, runValidators: true }
+            // );
+            // 
+            // if (!exerciseSetActualizado || !exerciseSetActualizado.activo) {
+            //     return null;
+            // }
+            // 
+            // return exerciseSetActualizado;
 
-        const response: ApiResponse<PaginatedResponse<ExerciseSetBase>> = {
-            ok: true,
-            message: 'Exercise sets obtenidos correctamente',
-            data: {
-                items: exerciseSetsDemo.slice(skip, skip + limit),
+            // TEMPORAL: Retornar null mientras no tengamos modelo
+            return null;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.actualizar:', error);
+            throw new Error('Error al actualizar exercise set');
+        }
+    }
+
+    /**
+     * Eliminar exercise set (soft delete)
+     */
+    static async eliminar(id: string): Promise<boolean> {
+        try {
+            // Validación básica
+            if (!id || id.length !== 24) {
+                throw new Error('ID de exercise set inválido');
+            }
+
+            // TODO: Cuando tengamos el modelo real
+            // const resultado = await ExerciseSet.findByIdAndUpdate(
+            //     id,
+            //     { 
+            //         activo: false, 
+            //         fechaActualizacion: new Date() 
+            //     },
+            //     { new: true }
+            // );
+            // 
+            // return resultado !== null;
+
+            // TEMPORAL: Retornar false mientras no tengamos modelo
+            return false;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.eliminar:', error);
+            throw new Error('Error al eliminar exercise set');
+        }
+    }
+
+    /**
+     * Cambiar estado de publicación
+     */
+    static async togglePublicacion(id: string, publicado: boolean): Promise<ExerciseSetBase | null> {
+        try {
+            // Validación básica
+            if (!id || id.length !== 24) {
+                throw new Error('ID de exercise set inválido');
+            }
+
+            // TODO: Cuando tengamos el modelo real
+            // const exerciseSetActualizado = await ExerciseSet.findByIdAndUpdate(
+            //     id,
+            //     { 
+            //         publicado,
+            //         estado: publicado ? 'published' : 'draft',
+            //         fechaActualizacion: new Date()
+            //     },
+            //     { new: true }
+            // );
+            // 
+            // if (!exerciseSetActualizado || !exerciseSetActualizado.activo) {
+            //     return null;
+            // }
+            // 
+            // return exerciseSetActualizado;
+
+            // TEMPORAL: Retornar null mientras no tengamos modelo
+            return null;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.togglePublicacion:', error);
+            throw new Error('Error al cambiar estado de publicación');
+        }
+    }
+
+    /**
+     * Obtener exercise sets por filtros específicos
+     */
+    static async obtenerPorFiltros(filtros: {
+        estado?: 'draft' | 'published' | 'archived';
+        autorId?: string;
+        cursoId?: string;
+        search?: string;
+        page?: number;
+        limit?: number;
+    }): Promise<PaginatedResponse<ExerciseSetBase>> {
+        try {
+            const page = filtros.page || 1;
+            const limit = filtros.limit || 10;
+
+            // TODO: Cuando tengamos el modelo real
+            // const query: any = { activo: true };
+            // 
+            // if (filtros.estado) {
+            //     query.estado = filtros.estado;
+            // }
+            // 
+            // if (filtros.autorId) {
+            //     query.autorId = filtros.autorId;
+            // }
+            // 
+            // if (filtros.cursoId) {
+            //     query.cursoId = filtros.cursoId;
+            // }
+            // 
+            // if (filtros.search) {
+            //     query.$or = [
+            //         { titulo: { $regex: filtros.search, $options: 'i' } },
+            //         { descripcion: { $regex: filtros.search, $options: 'i' } }
+            //     ];
+            // }
+            // 
+            // const skip = (page - 1) * limit;
+            // const exerciseSets = await ExerciseSet.find(query)
+            //     .populate('autorId', 'nombre apellido email')
+            //     .sort({ fechaCreacion: -1 })
+            //     .skip(skip)
+            //     .limit(limit);
+            // const total = await ExerciseSet.countDocuments(query);
+
+            // TEMPORAL: Array vacío mientras no tengamos modelo
+            const exerciseSets: ExerciseSetBase[] = [];
+            const total = 0;
+            const totalPages = Math.ceil(total / limit);
+
+            return {
+                items: exerciseSets,
                 total,
                 page,
                 limit,
                 totalPages
-            }
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('❌ Error al obtener exercise sets:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al obtener exercise sets',
-            error: 'FETCH_EXERCISE_SETS_ERROR'
-        };
-
-        res.status(500).json(response);
-    }
-};
-
-/**
- * Obtener un exercise set por ID
- * GET /api/exercise-sets/:id
- */
-export const obtenerExerciseSetPorId = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-
-        // Validación básica de ID
-        if (!id || id.length !== 24) {
-            const response: ApiResponse = {
-                ok: false,
-                message: 'ID de exercise set inválido',
-                error: 'INVALID_EXERCISE_SET_ID'
             };
-            res.status(400).json(response);
-            return;
+
+        } catch (error) {
+            console.error('❌ Error en ExerciseSetController.obtenerPorFiltros:', error);
+            throw new Error('Error al obtener exercise sets filtrados');
         }
-
-        // TODO: Cuando tengamos el modelo, reemplazar con consulta real
-        // const exerciseSet = await ExerciseSet.findById(id)
-        //   .populate('autorId', 'nombre apellido email')
-        //   .populate('preguntas');
-
-        // TEMPORAL: Datos de prueba
-        const exerciseSetDemo: ExerciseSetBase = {
-            id,
-            titulo: 'Ejercicios de Cálculo I',
-            descripcion: 'Ejercicios básicos de límites y derivadas',
-            instrucciones: 'Resuelve cada pregunta paso a paso',
-            preguntas: [],
-            configuracion: {
-                intentos: 3,
-                tiempo: 60,
-                mostrarRespuestas: true,
-                mostrarExplicaciones: true,
-                navegacionLibre: true,
-                autoguardado: true
-            },
-            estado: 'published',
-            activo: true,
-            publicado: true,
-            fechaCreacion: new Date(),
-            fechaActualizacion: new Date(),
-            autorId: '507f1f77bcf86cd799439012',
-            cursoId: '507f1f77bcf86cd799439013'
-        };
-
-        const response: ApiResponse<ExerciseSetBase> = {
-            ok: true,
-            message: 'Exercise set obtenido correctamente',
-            data: exerciseSetDemo
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('❌ Error al obtener exercise set:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al obtener exercise set',
-            error: 'FETCH_EXERCISE_SET_ERROR'
-        };
-
-        res.status(500).json(response);
     }
-};
 
-/**
- * Crear un nuevo exercise set
- * POST /api/exercise-sets
- */
-export const crearExerciseSet = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const exerciseData: CreateExerciseSetRequest = req.body;
+    // ============================================================================
+    // MÉTODOS PRIVADOS
+    // ============================================================================
 
-        // Validación básica
-        const validationErrors: ValidationError[] = [];
-
-        if (!exerciseData.titulo || exerciseData.titulo.trim().length === 0) {
-            validationErrors.push({
-                field: 'titulo',
-                message: 'El título es obligatorio'
-            });
+    /**
+     * Validar datos de creación
+     */
+    private static validarDatosCreacion(data: CreateExerciseSetRequest): void {
+        if (!data.titulo || data.titulo.trim().length === 0) {
+            throw new Error('El título es obligatorio');
         }
 
-        if (!exerciseData.descripcion || exerciseData.descripcion.trim().length === 0) {
-            validationErrors.push({
-                field: 'descripcion',
-                message: 'La descripción es obligatoria'
-            });
+        if (data.titulo.length > 200) {
+            throw new Error('El título no puede exceder 200 caracteres');
         }
 
-        if (!exerciseData.configuracion) {
-            validationErrors.push({
-                field: 'configuracion',
-                message: 'La configuración es obligatoria'
-            });
+        if (!data.descripcion || data.descripcion.trim().length === 0) {
+            throw new Error('La descripción es obligatoria');
         }
 
-        if (validationErrors.length > 0) {
-            const response: ApiResponse<ValidationError[]> = {
-                ok: false,
-                message: 'Errores de validación',
-                data: validationErrors,
-                error: 'VALIDATION_ERROR'
-            };
-            res.status(400).json(response);
-            return;
+        if (data.descripcion.length > 1000) {
+            throw new Error('La descripción no puede exceder 1000 caracteres');
         }
 
-        // TODO: Cuando tengamos el modelo, crear exercise set real
-        // const nuevoExerciseSet = new ExerciseSet({
-        //   titulo: exerciseData.titulo.trim(),
-        //   descripcion: exerciseData.descripcion.trim(),
-        //   instrucciones: exerciseData.instrucciones?.trim(),
-        //   configuracion: exerciseData.configuracion,
-        //   cursoId: exerciseData.cursoId,
-        //   autorId: req.user?.id, // Del middleware de autenticación
-        //   estado: 'draft',
-        //   activo: true,
-        //   publicado: false
-        // });
-        // const exerciseSetCreado = await nuevoExerciseSet.save();
+        if (!data.configuracion) {
+            throw new Error('La configuración es obligatoria');
+        }
 
-        // TEMPORAL: Simular creación
-        const exerciseSetCreado: ExerciseSetBase = {
-            id: '507f1f77bcf86cd7994390' + Math.random().toString(36).substr(2, 2),
-            titulo: exerciseData.titulo.trim(),
-            descripcion: exerciseData.descripcion.trim(),
-            preguntas: [],
-            configuracion: exerciseData.configuracion,
-            estado: 'draft',
-            activo: true,
-            publicado: false,
-            fechaCreacion: new Date(),
-            fechaActualizacion: new Date(),
-            autorId: 'temp-user-id',
-            ...(exerciseData.instrucciones && { instrucciones: exerciseData.instrucciones.trim() }),
-            ...(exerciseData.cursoId && { cursoId: exerciseData.cursoId })
-        };
+        if (data.configuracion.intentos < 1 || data.configuracion.intentos > 10) {
+            throw new Error('Los intentos deben estar entre 1 y 10');
+        }
 
-        const response: ApiResponse<ExerciseSetBase> = {
-            ok: true,
-            message: 'Exercise set creado correctamente',
-            data: exerciseSetCreado
-        };
-
-        res.status(201).json(response);
-    } catch (error) {
-        console.error('❌ Error al crear exercise set:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al crear exercise set',
-            error: 'CREATE_EXERCISE_SET_ERROR'
-        };
-
-        res.status(500).json(response);
+        if (data.configuracion.tiempo && (data.configuracion.tiempo < 1 || data.configuracion.tiempo > 300)) {
+            throw new Error('El tiempo debe estar entre 1 y 300 minutos');
+        }
     }
-};
 
-/**
- * Actualizar un exercise set
- * PUT /api/exercise-sets/:id
- */
-export const actualizarExerciseSet = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const updateData: Partial<CreateExerciseSetRequest> = req.body;
-
-        // Validación básica de ID
-        if (!id || id.length !== 24) {
-            const response: ApiResponse = {
-                ok: false,
-                message: 'ID de exercise set inválido',
-                error: 'INVALID_EXERCISE_SET_ID'
-            };
-            res.status(400).json(response);
-            return;
-        }
-
-        // TODO: Cuando tengamos el modelo, actualizar exercise set real
-        // const exerciseSetActualizado = await ExerciseSet.findByIdAndUpdate(
-        //   id,
-        //   {
-        //     ...updateData,
-        //     fechaActualizacion: new Date()
-        //   },
-        //   { new: true, runValidators: true }
-        // ).populate('autorId', 'nombre apellido email');
-
-        // TEMPORAL: Simular actualización
-        const exerciseSetActualizado: ExerciseSetBase = {
-            id,
-            titulo: updateData.titulo || 'Ejercicios Actualizados',
-            descripcion: updateData.descripcion || 'Descripción actualizada',
-            preguntas: [],
-            configuracion: updateData.configuracion || {
-                intentos: 3,
-                tiempo: 60,
-                mostrarRespuestas: true,
-                mostrarExplicaciones: true,
-                navegacionLibre: true,
-                autoguardado: true
-            },
-            estado: 'draft',
-            activo: true,
-            publicado: false,
-            fechaCreacion: new Date('2024-01-01'),
-            fechaActualizacion: new Date(),
-            autorId: 'temp-user-id',
-            ...(updateData.instrucciones && { instrucciones: updateData.instrucciones }),
-            ...(updateData.cursoId && { cursoId: updateData.cursoId })
-        };
-
-        const response: ApiResponse<ExerciseSetBase> = {
-            ok: true,
-            message: 'Exercise set actualizado correctamente',
-            data: exerciseSetActualizado
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('❌ Error al actualizar exercise set:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al actualizar exercise set',
-            error: 'UPDATE_EXERCISE_SET_ERROR'
-        };
-
-        res.status(500).json(response);
+    /**
+     * Generar ID temporal para simulación
+     */
+    private static generarId(): string {
+        return '507f1f77bcf86cd7994390' + Math.random().toString(36).substr(2, 2);
     }
-};
 
-/**
- * Eliminar un exercise set (soft delete)
- * DELETE /api/exercise-sets/:id
- */
-export const eliminarExerciseSet = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-
-        // Validación básica de ID
-        if (!id || id.length !== 24) {
-            const response: ApiResponse = {
-                ok: false,
-                message: 'ID de exercise set inválido',
-                error: 'INVALID_EXERCISE_SET_ID'
-            };
-            res.status(400).json(response);
-            return;
-        }
-
-        // TODO: Cuando tengamos el modelo, hacer soft delete real
-        // const exerciseSetEliminado = await ExerciseSet.findByIdAndUpdate(
-        //   id,
-        //   { 
-        //     activo: false,
-        //     fechaActualizacion: new Date()
-        //   },
-        //   { new: true }
-        // );
-
-        const response: ApiResponse = {
-            ok: true,
-            message: 'Exercise set eliminado correctamente'
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('❌ Error al eliminar exercise set:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al eliminar exercise set',
-            error: 'DELETE_EXERCISE_SET_ERROR'
-        };
-
-        res.status(500).json(response);
+    /**
+     * Validar formato de ObjectId de MongoDB
+     */
+    private static esIdValido(id: string): boolean {
+        return /^[0-9a-fA-F]{24}$/.test(id);
     }
-};
-
-/**
- * Publicar/despublicar un exercise set
- * PATCH /api/exercise-sets/:id/publish
- */
-export const togglePublicarExerciseSet = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const { publicado }: { publicado: boolean } = req.body;
-
-        // Validación básica de ID
-        if (!id || id.length !== 24) {
-            const response: ApiResponse = {
-                ok: false,
-                message: 'ID de exercise set inválido',
-                error: 'INVALID_EXERCISE_SET_ID'
-            };
-            res.status(400).json(response);
-            return;
-        }
-
-        // TODO: Cuando tengamos el modelo, actualizar estado real
-        // const exerciseSet = await ExerciseSet.findByIdAndUpdate(
-        //   id,
-        //   { 
-        //     publicado,
-        //     estado: publicado ? 'published' : 'draft',
-        //     fechaPublicacion: publicado ? new Date() : undefined,
-        //     fechaActualizacion: new Date()
-        //   },
-        //   { new: true }
-        // );
-
-        const response: ApiResponse = {
-            ok: true,
-            message: `Exercise set ${publicado ? 'publicado' : 'despublicado'} correctamente`
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('❌ Error al cambiar estado de publicación:', error);
-
-        const response: ApiResponse = {
-            ok: false,
-            message: 'Error al cambiar estado de publicación',
-            error: 'TOGGLE_PUBLISH_ERROR'
-        };
-
-        res.status(500).json(response);
-    }
-};
+}
