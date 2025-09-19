@@ -58,7 +58,7 @@
     },
     "include": [
         "src/**/*"
-    ],
+, "test-backend.js"    ],
     "exclude": [
         "node_modules",
         "dist",

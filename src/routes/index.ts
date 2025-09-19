@@ -8,9 +8,9 @@
 import { Router, Application } from 'express';
 import { ApiResponse } from '../types/shared';
 
-// Importar controladores
+// Importar controladores disponibles
 import * as exerciseSetController from '../controllers/exerciseSetController';
-import * as questionController from '../controllers/questionController';
+// import * as questionController from '../controllers/questionController'; // TODO: Implementar
 
 // Importar rutas existentes (cuando estén disponibles)
 // import usuarioRoutes from './usuario';
@@ -87,10 +87,16 @@ export const configurarRutas = (app: Application): void => {
     // PATCH /api/exercise-sets/:id/publish - Publicar/despublicar
     router.patch('/exercise-sets/:id/publish', exerciseSetController.togglePublicarExerciseSet);
 
+    // Ruta adicional para compatibilidad con frontend
+    // GET /api/exercise-sets/instructor/:uid - Exercise sets por instructor
+    router.get('/exercise-sets/instructor/:uid', exerciseSetController.obtenerPorInstructor);
+
     // ============================================================================
-    // RUTAS EXERCISE SETS → PREGUNTAS ANIDADAS
+    // RUTAS PREGUNTAS ANIDADAS - TODO: Implementar después
     // ============================================================================
 
+    // TODO: Descomentar cuando tengamos questionController implementado
+    /*
     // GET /api/exercise-sets/:exerciseSetId/questions - Listar preguntas de un exercise set
     router.get('/exercise-sets/:exerciseSetId/questions', questionController.obtenerPreguntasDeExerciseSet);
 
@@ -100,10 +106,6 @@ export const configurarRutas = (app: Application): void => {
     // PATCH /api/exercise-sets/:exerciseSetId/questions/reorder - Reordenar preguntas
     router.patch('/exercise-sets/:exerciseSetId/questions/reorder', questionController.reordenarPreguntas);
 
-    // ============================================================================
-    // RUTAS PREGUNTAS INDIVIDUALES - CRUD
-    // ============================================================================
-
     // GET /api/questions/:id - Obtener pregunta específica
     router.get('/questions/:id', questionController.obtenerPreguntaPorId);
 
@@ -112,6 +114,7 @@ export const configurarRutas = (app: Application): void => {
 
     // DELETE /api/questions/:id - Eliminar pregunta
     router.delete('/questions/:id', questionController.eliminarPregunta);
+    */
 
     // ============================================================================
     // RUTAS FUTURAS - Intentos y respuestas de estudiantes
@@ -180,12 +183,8 @@ export const configurarRutas = (app: Application): void => {
                     'PUT /api/exercise-sets/:id - Actualizar exercise set',
                     'DELETE /api/exercise-sets/:id - Eliminar exercise set',
                     'PATCH /api/exercise-sets/:id/publish - Publicar/despublicar',
-                    'GET /api/exercise-sets/:exerciseSetId/questions - Preguntas del set',
-                    'POST /api/exercise-sets/:exerciseSetId/questions - Crear pregunta',
-                    'PATCH /api/exercise-sets/:exerciseSetId/questions/reorder - Reordenar',
-                    'GET /api/questions/:id - Obtener pregunta',
-                    'PUT /api/questions/:id - Actualizar pregunta',
-                    'DELETE /api/questions/:id - Eliminar pregunta'
+                    'GET /api/exercise-sets/instructor/:uid - Exercise sets por instructor'
+                    // TODO: Agregar rutas de preguntas cuando estén implementadas
                 ]
             }
         };
@@ -209,14 +208,8 @@ export const logRoutes = (app: Application): void => {
         console.log('   PUT    /api/exercise-sets/:id - Actualizar exercise set');
         console.log('   DELETE /api/exercise-sets/:id - Eliminar exercise set');
         console.log('   PATCH  /api/exercise-sets/:id/publish - Publicar/despublicar');
-        console.log('\n❓ Preguntas Anidadas CRUD:');
-        console.log('   GET    /api/exercise-sets/:exerciseSetId/questions - Preguntas del set');
-        console.log('   POST   /api/exercise-sets/:exerciseSetId/questions - Crear pregunta');
-        console.log('   PATCH  /api/exercise-sets/:exerciseSetId/questions/reorder - Reordenar');
-        console.log('   GET    /api/questions/:id - Obtener pregunta');
-        console.log('   PUT    /api/questions/:id - Actualizar pregunta');
-        console.log('   DELETE /api/questions/:id - Eliminar pregunta');
-        console.log('\n🔮 Próximas rutas: Intentos y respuestas de estudiantes');
+        console.log('   GET    /api/exercise-sets/instructor/:uid - Por instructor');
+        console.log('\n🔮 Próximas rutas: Preguntas anidadas, intentos y respuestas');
         console.log('   ALL    /api/* - Manejo 404\n');
     }
 };
