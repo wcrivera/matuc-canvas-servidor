@@ -1,9 +1,8 @@
 // ============================================================================
-// INDEX PRINCIPAL - MATUC LTI EXERCISE COMPOSER
+// PUNTO DE ENTRADA - MATUC LTI EXERCISE COMPOSER
 // ============================================================================
+// Archivo: src/index.ts
+// Propósito: Inicializar la aplicación
 
-// Importar el servidor directamente (no hay export default)
+// Importar y ejecutar el servidor
 import './server';
-
-// El servidor se inicia automáticamente al importar server.ts
-console.log('🎯 MATUC LTI Exercise Composer - Iniciando...');

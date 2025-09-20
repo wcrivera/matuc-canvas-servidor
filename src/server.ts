@@ -1,18 +1,19 @@
 // ============================================================================
 // SERVIDOR PRINCIPAL - MATUC LTI EXERCISE COMPOSER
 // ============================================================================
+// Archivo: src/server.ts
+// Propósito: Configuración servidor Express con rutas integradas
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 
-// Importar configuración de rutas
-import { configurarRutas } from './routes';
-
-// Importar configuración de base de datos existente
-import { dbConnection } from './config/database';
+import { dbConnection, getDatabaseStatus, healthCheck } from './config/database';
+import { userRoutes } from './routes';
+import { ApiResponse } from './types/shared';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -25,7 +26,7 @@ const PORT = process.env.PORT || 3000;
 // MIDDLEWARES DE SEGURIDAD
 // ============================================================================
 
-// Helmet para headers de seguridad
+// Helmet para headers de seguridad básicos
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,15 +34,47 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-    },
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
   },
+  crossOriginEmbedderPolicy: false // Permitir embeds para LTI
 }));
 
-// CORS configurado para Canvas
+// Rate limiting básico
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // máximo 100 requests por ventana por IP
+  message: {
+    ok: false,
+    message: 'Too many requests, please try again later',
+    error: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+app.use(limiter);
+
+// CORS configurado para Canvas y desarrollo
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  origin: function (origin: string | undefined, callback: Function) {
+    const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'];
+
+    // Permitir requests sin origin (Postman, apps móviles, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 
@@ -49,91 +82,248 @@ app.use(cors(corsOptions));
 // MIDDLEWARES DE APLICACIÓN
 // ============================================================================
 
-// Morgan para logging de requests
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+// Morgan para logging
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 
 // Parse JSON con límite de tamaño
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    // Verificación básica de JSON válido para seguridad
+    try {
+      JSON.parse(buf.toString());
+    } catch (e) {
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
 
 // Parse URL-encoded data
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.urlencoded({
+  extended: true,
+  limit: '10mb'
+}));
 
 // ============================================================================
-// CONFIGURAR RUTAS
+// RUTAS DE SALUD Y ESTADO
 // ============================================================================
 
-configurarRutas(app);
+// Health check básico
+app.get('/health', async (req, res) => {
+  try {
+    const dbStatus = getDatabaseStatus();
+    const dbHealth = await healthCheck();
+
+    const response: ApiResponse = {
+      ok: true,
+      message: 'MATUC LTI Exercise Composer - Server running',
+      data: {
+        server: {
+          status: 'running',
+          environment: process.env.NODE_ENV,
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          memory: process.memoryUsage()
+        },
+        database: {
+          ...dbStatus,
+          health: dbHealth
+        }
+      }
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    const errorResponse: ApiResponse = {
+      ok: false,
+      message: 'Health check failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    res.status(500).json(errorResponse);
+  }
+});
+
+// Info del servidor
+app.get('/info', (req, res) => {
+  const response: ApiResponse = {
+    ok: true,
+    message: 'Server information',
+    data: {
+      name: 'MATUC LTI Exercise Composer Backend',
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      database: process.env.DB_CNN ? 'Configured' : 'Not configured',
+      features: {
+        lti: 'Planned',
+        canvas: 'Planned',
+        exercises: 'In development'
+      },
+      endpoints: {
+        health: '/health',
+        info: '/info',
+        database: '/db-status',
+        users: '/api/users'
+      }
+    }
+  };
+  res.status(200).json(response);
+});
+
+// Estado específico de la base de datos
+app.get('/db-status', async (req, res) => {
+  try {
+    const dbStatus = getDatabaseStatus();
+    const dbHealth = await healthCheck();
+
+    const response: ApiResponse = {
+      ok: dbStatus.connected,
+      message: dbStatus.connected ? 'Database connected' : 'Database disconnected',
+      data: {
+        ...dbStatus,
+        health: dbHealth,
+        details: {
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV
+        }
+      }
+    };
+
+    res.status(dbStatus.connected ? 200 : 503).json(response);
+  } catch (error) {
+    const errorResponse: ApiResponse = {
+      ok: false,
+      message: 'Database status check failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    res.status(500).json(errorResponse);
+  }
+});
 
 // ============================================================================
-// MANEJO DE ERRORES GLOBAL
+// RUTAS DE DESARROLLO Y TESTING
+// ============================================================================
+
+// Ruta de prueba para Postman
+app.get('/test', (req, res) => {
+  const response: ApiResponse = {
+    ok: true,
+    message: 'Test endpoint working',
+    data: {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      query: req.query
+    }
+  };
+  res.status(200).json(response);
+});
+
+// Echo endpoint para testing
+app.post('/echo', (req, res) => {
+  const response: ApiResponse = {
+    ok: true,
+    message: 'Echo endpoint',
+    data: {
+      body: req.body,
+      headers: req.headers,
+      timestamp: new Date().toISOString()
+    }
+  };
+  res.status(200).json(response);
+});
+
+// ============================================================================
+// RUTAS DE LA APLICACIÓN
+// ============================================================================
+
+// Rutas de usuarios
+app.use('/api/users', userRoutes);
+
+// TODO: Agregar más rutas cuando estén listas
+// app.use('/api/exercise-sets', exerciseSetRoutes);
+// app.use('/api/questions', questionRoutes);
+// app.use('/api/attempts', attemptRoutes);
+
+// ============================================================================
+// MANEJO DE ERRORES
 // ============================================================================
 
 // Middleware para rutas no encontradas
 app.use('*', (req, res) => {
-  res.status(404).json({
+  const response: ApiResponse = {
     ok: false,
-    message: `Ruta ${req.originalUrl} no encontrada`,
-    error: 'Not Found'
-  });
+    message: `Route ${req.originalUrl} not found`,
+    error: 'NOT_FOUND'
+  };
+  res.status(404).json(response);
 });
 
-// Middleware para manejo de errores
+// Middleware global de manejo de errores
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error no manejado:', error);
+  console.error('Unhandled error:', error);
 
-  res.status(500).json({
+  const response: ApiResponse = {
     ok: false,
-    message: 'Error interno del servidor',
-    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.message
-  });
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'INTERNAL_ERROR'
+  };
+
+  res.status(500).json(response);
 });
 
 // ============================================================================
-// INICIAR SERVIDOR
+// INICIALIZACIÓN DEL SERVIDOR
 // ============================================================================
 
-const iniciarServidor = async () => {
+const startServer = async () => {
   try {
-    // Conectar a base de datos usando configuración existente
+    // Conectar a la base de datos primero
+    console.log('Starting MATUC LTI Exercise Composer...');
     await dbConnection();
-    console.log('✅ Base de datos conectada');
 
-    // Iniciar servidor
+    // Iniciar servidor HTTP
     app.listen(PORT, () => {
-      console.log('🚀 Servidor MATUC LTI Exercise Composer iniciado');
-      console.log(`📍 Puerto: ${PORT}`);
-      console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔒 CORS habilitado para: ${corsOptions.origin}`);
-
-      // Log de rutas disponibles
-      console.log('\n📋 Rutas disponibles:');
-      console.log('   GET  /api/health - Verificar estado del servidor');
-      console.log('   GET  /api/info - Información del servidor');
-      console.log('   GET  /api/test - Test de rutas');
-      console.log('   GET  /api/exercise-sets - Listar exercise sets');
-      console.log('   POST /api/exercise-sets - Crear exercise set');
-      console.log('   GET  /api/exercise-sets/:id - Obtener exercise set');
-      console.log('   PUT  /api/exercise-sets/:id - Actualizar exercise set');
-      console.log('   DELETE /api/exercise-sets/:id - Eliminar exercise set');
-      console.log('\n✅ Servidor listo para recibir requests');
+      console.log('='.repeat(60));
+      console.log('🚀 MATUC LTI Exercise Composer Server Started');
+      console.log('='.repeat(60));
+      console.log(`📍 Port: ${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔒 CORS: ${process.env.CORS_ORIGIN || 'default'}`);
+      console.log(`🗄️  Database: Connected`);
+      console.log('');
+      console.log('📋 Available endpoints:');
+      console.log(`   GET  http://localhost:${PORT}/health - Health check`);
+      console.log(`   GET  http://localhost:${PORT}/info - Server info`);
+      console.log(`   GET  http://localhost:${PORT}/db-status - Database status`);
+      console.log(`   GET  http://localhost:${PORT}/test - Test endpoint`);
+      console.log(`   POST http://localhost:${PORT}/echo - Echo endpoint`);
+      console.log('');
+      console.log('📋 User API endpoints:');
+      console.log(`   POST http://localhost:${PORT}/api/users - Create user`);
+      console.log(`   GET  http://localhost:${PORT}/api/users - List users`);
+      console.log(`   GET  http://localhost:${PORT}/api/users/:uid - Get user by UID`);
+      console.log(`   PUT  http://localhost:${PORT}/api/users/:uid - Update user`);
+      console.log(`   DELETE http://localhost:${PORT}/api/users/:uid - Delete user`);
+      console.log(`   POST http://localhost:${PORT}/api/users/init-admin - Create default admin`);
+      console.log(`   GET  http://localhost:${PORT}/api/users/stats - User statistics`);
+      console.log('');
+      console.log('✅ Server ready to accept connections');
+      console.log('='.repeat(60));
     });
 
   } catch (error) {
-    console.error('❌ Error al iniciar servidor:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
 
-// Iniciar servidor
-iniciarServidor();
+// Exportar app para testing
+export default app;
 
-// Manejo de cierre graceful
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM recibido, cerrando servidor...');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT recibido, cerrando servidor...');
-  process.exit(0);
-});
+// Iniciar servidor automáticamente
+startServer();
