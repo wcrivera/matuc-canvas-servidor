@@ -5,200 +5,135 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import { config } from 'dotenv';
-import { dbConnection, setupDatabaseEvents, setupDevelopmentLogging } from './config/database';
-import { configurarRutas, logRoutes } from './routes';
+import dotenv from 'dotenv';
+
+// Importar configuración de rutas
+import { configurarRutas } from './routes';
+
+// Importar configuración de base de datos existente
+import { dbConnection } from './config/database';
 
 // Cargar variables de entorno
-config();
+dotenv.config();
 
-/**
- * Clase del servidor Express - Compatible con estructura existente
- * Ahora integrada con los nuevos archivos de configuración
- */
-export default class Server {
-  public app: express.Application;
-  private port: string;
-
-  constructor() {
-    this.app = express();
-    this.port = process.env.PORT || '3000';
-
-    // Inicializar en el orden correcto
-    this.initializeMiddlewares();
-    this.connectDatabase();
-    this.initializeRoutes();
-    this.initializeErrorHandling();
-  }
-
-  /**
-   * Configurar middlewares básicos
-   */
-  private initializeMiddlewares(): void {
-    // Security headers (configurado para Canvas LTI)
-    this.app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          connectSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
-          frameAncestors: ["'self'", "https://*.instructure.com"]
-        }
-      },
-      xFrameOptions: false // Permitir embedding en Canvas
-    }));
-
-    // CORS configurado para Canvas
-    const corsOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'];
-    this.app.use(cors({
-      origin: corsOrigins,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    }));
-
-    // Rate limiting
-    const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutos
-      max: 100, // límite de 100 requests por ventana por IP
-      message: {
-        ok: false,
-        error: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.',
-      },
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
-    this.app.use(limiter);
-
-    // Logger de requests
-    if (process.env.NODE_ENV === 'development') {
-      this.app.use(morgan('dev'));
-    } else {
-      this.app.use(morgan('combined'));
-    }
-
-    // Parseo de JSON y URL encoded
-    this.app.use(express.json({ limit: '10mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-    // Trust proxy (para Heroku, Railway, etc.)
-    this.app.set('trust proxy', 1);
-
-    console.log('✅ Middlewares configurados');
-  }
-
-  /**
-   * Conectar a la base de datos
-   */
-  private async connectDatabase(): Promise<void> {
-    try {
-      // Configurar eventos de la base de datos
-      setupDatabaseEvents();
-
-      // Configurar logging de desarrollo si está habilitado
-      setupDevelopmentLogging();
-
-      // Conectar a MongoDB
-      await dbConnection();
-
-      console.log('✅ Base de datos inicializada');
-    } catch (error) {
-      console.error('❌ Error al inicializar la base de datos:', error);
-      process.exit(1);
-    }
-  }
-
-  /**
-   * Configurar rutas
-   */
-  private initializeRoutes(): void {
-    // Configurar todas las rutas usando el archivo routes/index.ts
-    configurarRutas(this.app);
-
-    // Log de rutas en desarrollo
-    if (process.env.NODE_ENV === 'development') {
-      logRoutes(this.app);
-    }
-
-    console.log('✅ Rutas configuradas');
-  }
-
-  /**
-   * Configurar manejo global de errores
-   */
-  private initializeErrorHandling(): void {
-    // Middleware para manejo de errores no capturados
-    this.app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      console.error('❌ Error no capturado:', error);
-
-      // En desarrollo, mostrar stack trace
-      const response = {
-        ok: false,
-        message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'INTERNAL_SERVER_ERROR',
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
-      };
-
-      res.status(500).json(response);
-    });
-
-    // Manejo de promesas rechazadas no capturadas
-    process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-      console.error('❌ Promesa rechazada no capturada:', promise, 'razón:', reason);
-      // En producción, podríamos querer cerrar el servidor gracefully
-      // process.exit(1);
-    });
-
-    // Manejo de excepciones no capturadas
-    process.on('uncaughtException', (error: Error) => {
-      console.error('❌ Excepción no capturada:', error);
-      process.exit(1);
-    });
-
-    console.log('✅ Manejo de errores configurado');
-  }
-
-  /**
-   * Iniciar el servidor
-   */
-  public listen(): void {
-    this.app.listen(this.port, () => {
-      console.log('\n🚀 ===============================================');
-      console.log('🎯 MATUC LTI EXERCISE COMPOSER - SERVIDOR ACTIVO');
-      console.log('🚀 ===============================================');
-      console.log(`📍 Puerto: ${this.port}`);
-      console.log(`🌐 URL: http://localhost:${this.port}`);
-      console.log(`🔧 Entorno: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`📊 Endpoints disponibles:`);
-      console.log(`   🏠 http://localhost:${this.port}/`);
-      console.log(`   ❤️  http://localhost:${this.port}/api/health`);
-      console.log(`   ℹ️  http://localhost:${this.port}/api/info`);
-      console.log(`   📝 http://localhost:${this.port}/api/exercise-sets`);
-      console.log(`   ❓ http://localhost:${this.port}/api/questions`);
-      console.log('🚀 ===============================================\n');
-    });
-  }
-
-  /**
-   * Cerrar servidor gracefully
-   */
-  public async close(): Promise<void> {
-    console.log('🔄 Cerrando servidor...');
-    // Aquí podríamos cerrar conexiones, limpiar recursos, etc.
-    console.log('✅ Servidor cerrado');
-  }
-}
+// Crear aplicación Express
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 // ============================================================================
-// INICIALIZACIÓN DEL SERVIDOR
+// MIDDLEWARES DE SEGURIDAD
 // ============================================================================
 
-// Solo inicializar si este archivo es ejecutado directamente
-if (require.main === module) {
-  const server = new Server();
-  server.listen();
-}
+// Helmet para headers de seguridad
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// CORS configurado para Canvas
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
+// ============================================================================
+// MIDDLEWARES DE APLICACIÓN
+// ============================================================================
+
+// Morgan para logging de requests
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Parse JSON con límite de tamaño
+app.use(express.json({ limit: '10mb' }));
+
+// Parse URL-encoded data
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// ============================================================================
+// CONFIGURAR RUTAS
+// ============================================================================
+
+configurarRutas(app);
+
+// ============================================================================
+// MANEJO DE ERRORES GLOBAL
+// ============================================================================
+
+// Middleware para rutas no encontradas
+app.use('*', (req, res) => {
+  res.status(404).json({
+    ok: false,
+    message: `Ruta ${req.originalUrl} no encontrada`,
+    error: 'Not Found'
+  });
+});
+
+// Middleware para manejo de errores
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error no manejado:', error);
+
+  res.status(500).json({
+    ok: false,
+    message: 'Error interno del servidor',
+    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.message
+  });
+});
+
+// ============================================================================
+// INICIAR SERVIDOR
+// ============================================================================
+
+const iniciarServidor = async () => {
+  try {
+    // Conectar a base de datos usando configuración existente
+    await dbConnection();
+    console.log('✅ Base de datos conectada');
+
+    // Iniciar servidor
+    app.listen(PORT, () => {
+      console.log('🚀 Servidor MATUC LTI Exercise Composer iniciado');
+      console.log(`📍 Puerto: ${PORT}`);
+      console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔒 CORS habilitado para: ${corsOptions.origin}`);
+
+      // Log de rutas disponibles
+      console.log('\n📋 Rutas disponibles:');
+      console.log('   GET  /api/health - Verificar estado del servidor');
+      console.log('   GET  /api/info - Información del servidor');
+      console.log('   GET  /api/test - Test de rutas');
+      console.log('   GET  /api/exercise-sets - Listar exercise sets');
+      console.log('   POST /api/exercise-sets - Crear exercise set');
+      console.log('   GET  /api/exercise-sets/:id - Obtener exercise set');
+      console.log('   PUT  /api/exercise-sets/:id - Actualizar exercise set');
+      console.log('   DELETE /api/exercise-sets/:id - Eliminar exercise set');
+      console.log('\n✅ Servidor listo para recibir requests');
+    });
+
+  } catch (error) {
+    console.error('❌ Error al iniciar servidor:', error);
+    process.exit(1);
+  }
+};
+
+// Iniciar servidor
+iniciarServidor();
+
+// Manejo de cierre graceful
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM recibido, cerrando servidor...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT recibido, cerrando servidor...');
+  process.exit(0);
+});

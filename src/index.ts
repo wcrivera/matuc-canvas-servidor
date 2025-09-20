@@ -1,32 +1,9 @@
 // ============================================================================
-// PUNTO DE ENTRADA - MATUC LTI EXERCISE COMPOSER
+// INDEX PRINCIPAL - MATUC LTI EXERCISE COMPOSER
 // ============================================================================
-// Archivo: src/index.ts
-// Propósito: Inicializar y ejecutar el servidor
 
-import Server from './server';
+// Importar el servidor directamente (no hay export default)
+import './server';
 
-/**
- * Crear e inicializar el servidor
- */
-const server = new Server();
-
-/**
- * Iniciar el servidor
- */
-server.listen();
-
-/**
- * Manejo de señales del sistema para cerrado graceful
- */
-process.on('SIGTERM', async () => {
-    console.log('📡 SIGTERM recibida, cerrando servidor gracefully...');
-    await server.close();
-    process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-    console.log('📡 SIGINT recibida, cerrando servidor gracefully...');
-    await server.close();
-    process.exit(0);
-});
+// El servidor se inicia automáticamente al importar server.ts
+console.log('🎯 MATUC LTI Exercise Composer - Iniciando...');

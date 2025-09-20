@@ -1,57 +1,105 @@
 // ============================================================================
 // TIPOS COMPARTIDOS - MATUC LTI EXERCISE COMPOSER
 // ============================================================================
-// Archivo: /shared-types/index.ts
+// Archivo: shared-types/index.ts
 // Propósito: Tipos base compartidos entre frontend y backend
-// Compatibilidad: Mantiene estructura existente de ambos proyectos
+// Codificación: MINIMALISTA Y LIMPIA
 
 /**
- * Identificadores únicos - Compatible con ambos proyectos
+ * Identificadores únicos
  */
 export type ID = string;
-export type MongoObjectId = string; // Para referencias MongoDB
+export type ESID = string; // Exercise Set ID
+export type NQID = string; // Nested Question ID
+export type SAID = string; // Student Attempt ID
 
 /**
- * Estados básicos de la aplicación
+ * Estados básicos
  */
 export type LoadingState = 'idle' | 'loading' | 'succeeded' | 'failed';
 export type ExerciseStatus = 'draft' | 'published' | 'archived';
-export type AttemptStatus = 'in_progress' | 'completed' | 'submitted' | 'graded';
+export type AttemptStatus = 'not_started' | 'in_progress' | 'completed' | 'submitted' | 'graded';
 
 /**
- * Tipos de pregunta - Compatible con frontend existente
+ * Tipos de pregunta
  */
-export type QuestionType =
+export type QuestionType = 
     | 'multiple'
     | 'verdadero_falso'
     | 'texto_corto'
     | 'numerico'
     | 'matematica'
-    | 'numero'      // Compatibilidad con frontend existente
-    | 'conjunto'    // Compatibilidad con frontend existente
-    | 'punto'       // Compatibilidad con frontend existente
-    | 'formula'     // Compatibilidad con frontend existente
-    | 'ecuacion'    // Compatibilidad con frontend existente
-    | 'antiderivada'; // Compatibilidad con frontend existente
+    | 'numero'
+    | 'conjunto'
+    | 'punto'
+    | 'formula'
+    | 'ecuacion'
+    | 'antiderivada';
 
 /**
- * Roles de usuario - Compatible con sistema existente
+ * Roles
  */
 export type UserRole = 'instructor' | 'student' | 'admin';
+export type LTIRole = 'Instructor' | 'Learner' | 'TeachingAssistant';
 
 /**
- * Respuesta API estándar - Compatible con frontend existente
+ * Respuesta API estándar
  */
 export interface ApiResponse<T = unknown> {
     readonly ok: boolean;
     readonly data?: T;
     readonly message?: string;
     readonly error?: string;
-    readonly timestamp?: string; // Para backend
 }
 
 /**
- * Usuario base - Compatible con estructura existente
+ * Error de validación
+ */
+export interface ValidationError {
+    readonly field: string;
+    readonly message: string;
+}
+
+/**
+ * Paginación LIMPIA
+ */
+export interface PaginationParams {
+    readonly page: number;
+    readonly limit: number;
+}
+
+export interface PaginatedResponse<T> {
+    readonly items: T[];
+    readonly pagination: {
+        readonly currentPage: number;
+        readonly totalPages: number;
+        readonly totalItems: number;
+        readonly itemsPerPage: number;
+        readonly hasNextPage: boolean;
+        readonly hasPreviousPage: boolean;
+    };
+}
+
+/**
+ * Datos LTI 1.1
+ */
+export interface LTIUserData {
+    readonly user_id: string;
+    readonly lis_person_name_full: string;
+    readonly lis_person_contact_email_primary: string;
+    readonly custom_canvas_user_id: string;
+    readonly roles: LTIRole[];
+}
+
+export interface LTIContextData {
+    readonly context_id: string;
+    readonly context_title: string;
+    readonly custom_canvas_course_id: string;
+    readonly resource_link_id: string;
+}
+
+/**
+ * Usuario base
  */
 export interface BaseUser {
     readonly id: ID;
@@ -62,11 +110,11 @@ export interface BaseUser {
 }
 
 /**
- * Configuración de ejercicio - Simplificada y compatible
+ * Configuración de ejercicio
  */
 export interface ExerciseConfig {
     readonly intentos: number;
-    readonly tiempo?: number; // en minutos
+    readonly tiempo?: number;
     readonly mostrarRespuestas: boolean;
     readonly mostrarExplicaciones: boolean;
     readonly navegacionLibre: boolean;
@@ -74,7 +122,7 @@ export interface ExerciseConfig {
 }
 
 /**
- * Feedback de pregunta - Compatible con frontend existente
+ * Feedback de pregunta
  */
 export interface QuestionFeedback {
     readonly correcto: string;
@@ -84,47 +132,43 @@ export interface QuestionFeedback {
 }
 
 /**
- * Configuración de pregunta por tipo
+ * Configuración de pregunta
  */
-export interface QuestionConfigBase {
-    readonly opciones?: string[];           // Para múltiple opción
-    readonly correctas?: number[];          // Índices correctos
-    readonly tolerancia?: number;           // Para numérico
-    readonly caseSensitive?: boolean;       // Para texto
-    readonly respuestasAceptadas?: string[]; // Alternativas válidas
+export interface QuestionConfig {
+    readonly opciones?: string[];
+    readonly correctas?: number[];
+    readonly tolerancia?: number;
+    readonly caseSensitive?: boolean;
+    readonly respuestasAceptadas?: string[];
 }
 
 /**
- * Pregunta base - Mapeo entre frontend y backend
- * Frontend usa: id, titulo, enunciado, tipo
- * Backend usa: nqid, titulo, enunciado, tipo
+ * Pregunta base - LIMPIA Y CONSISTENTE
  */
 export interface QuestionBase {
-    readonly id: ID;
+    readonly id: NQID;
+    readonly exerciseSetId: ESID;
     readonly titulo: string;
     readonly enunciado: string;
     readonly tipo: QuestionType;
     readonly orden: number;
-    readonly config: QuestionConfigBase;
-    readonly respuestaCorrecta: any; // Flexible para diferentes tipos
+    readonly config: QuestionConfig;
+    readonly respuestaCorrecta: any;
     readonly feedback: QuestionFeedback;
     readonly puntos: number;
     readonly dificultad: 'facil' | 'medio' | 'dificil';
-    readonly tiempoEstimado: number; // en minutos
     readonly tags: string[];
     readonly activo: boolean;
 }
 
 /**
- * Set de ejercicios base - Mapeo entre frontend y backend
- * Frontend usa: id, titulo, descripcion
- * Backend usa: esid, titulo, descripcion
+ * Exercise Set base - LIMPIO Y CONSISTENTE
  */
 export interface ExerciseSetBase {
-    readonly id: ID;
+    readonly id: ESID;
     readonly titulo: string;
     readonly descripcion: string;
-    readonly instrucciones?: string | undefined;
+    readonly instrucciones?: string;
     readonly preguntas: QuestionBase[];
     readonly configuracion: ExerciseConfig;
     readonly estado: ExerciseStatus;
@@ -133,127 +177,58 @@ export interface ExerciseSetBase {
     readonly fechaCreacion: Date;
     readonly fechaActualizacion: Date;
     readonly autorId: ID;
-    readonly cursoId?: ID; // Opcional para compatibilidad
 }
 
 /**
  * Intento de estudiante
  */
 export interface StudentAttemptBase {
-    readonly id: ID;
-    readonly exerciseSetId: ID;
+    readonly id: SAID;
+    readonly exerciseSetId: ESID;
     readonly studentId: ID;
     readonly estado: AttemptStatus;
     readonly fechaInicio: Date;
     readonly fechaFinalizacion?: Date;
     readonly puntajeObtenido?: number;
     readonly puntajeMaximo: number;
-    readonly tiempoTranscurrido: number; // en segundos
+    readonly tiempoTranscurrido: number;
     readonly intentoNumero: number;
 }
 
 /**
- * Respuesta a pregunta individual
+ * Respuesta a pregunta
  */
 export interface QuestionResponseBase {
     readonly id: ID;
-    readonly questionId: ID;
-    readonly attemptId: ID;
-    readonly respuestaEstudiante: any; // Flexible para diferentes tipos
+    readonly questionId: NQID;
+    readonly attemptId: SAID;
+    readonly respuestaEstudiante: any;
     readonly esCorrecta: boolean;
     readonly puntajeObtenido: number;
     readonly puntajeMaximo: number;
-    readonly tiempoRespuesta: number; // en segundos
-    readonly feedbackMostrado: string;
+    readonly tiempoRespuesta: number;
 }
 
 /**
- * Request para crear ejercicio - Compatible con formularios frontend
+ * Requests para APIs - LIMPIOS
  */
 export interface CreateExerciseSetRequest {
     readonly titulo: string;
     readonly descripcion: string;
-    readonly instrucciones?: string | undefined;
+    readonly instrucciones?: string;
     readonly configuracion: ExerciseConfig;
-    readonly cursoId?: ID;
 }
 
-/**
- * Request para crear pregunta - Compatible con formularios frontend
- */
 export interface CreateQuestionRequest {
-    readonly exerciseSetId: ID;
+    readonly exerciseSetId: ESID;
     readonly titulo: string;
     readonly enunciado: string;
     readonly tipo: QuestionType;
     readonly orden: number;
-    readonly config: QuestionConfigBase;
+    readonly config: QuestionConfig;
     readonly respuestaCorrecta: any;
     readonly feedback: QuestionFeedback;
     readonly puntos: number;
     readonly dificultad: 'facil' | 'medio' | 'dificil';
-    readonly tiempoEstimado: number;
     readonly tags: string[];
 }
-
-/**
- * Request para enviar respuesta
- */
-export interface SubmitAnswerRequest {
-    readonly questionId: ID;
-    readonly attemptId: ID;
-    readonly respuestaEstudiante: any;
-    readonly tiempoRespuesta?: number;
-}
-
-/**
- * Resultado de validación
- */
-export interface ValidationResult {
-    readonly esCorrecta: boolean;
-    readonly puntajeObtenido: number;
-    readonly puntajeMaximo: number;
-    readonly feedback: string;
-    readonly explicacion?: string;
-    readonly pista?: string;
-}
-
-/**
- * Paginación - Para listas de ejercicios
- */
-export interface PaginationParams {
-    readonly page: number;
-    readonly limit: number;
-}
-
-export interface PaginatedResponse<T> {
-    readonly items: readonly T[];
-    readonly total: number;
-    readonly page: number;
-    readonly limit: number;
-    readonly totalPages: number;
-}
-
-/**
- * Timestamps base
- */
-export interface Timestamps {
-    readonly createdAt: Date;
-    readonly updatedAt: Date;
-}
-
-/**
- * Error handling
- */
-export interface AppError {
-    readonly code: string;
-    readonly message: string;
-    readonly details?: Record<string, unknown>;
-}
-
-export interface ValidationError {
-    readonly field: string;
-    readonly message: string;
-}
-
-export type ValidationErrors = ValidationError[];

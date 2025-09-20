@@ -1,43 +1,48 @@
 // ============================================================================
-// RUTAS EXERCISE SET - MINIMALISTAS CORREGIDAS
+// RUTAS EXERCISE SET - IMPORTS CORREGIDOS
 // ============================================================================
-// Archivo: src/routes/exerciseSet.ts
-// Propósito: Rutas específicas para Exercise Sets usando funciones individuales
-// Compatible con controlador corregido
 
 import { Router } from 'express';
-import {
-    crear,
-    obtenerPorId,
-    obtenerPorInstructor,
-    actualizar,
-    eliminar
-} from '../controllers/exerciseSetController';
+
+// Importar desde controllers/index para usar exports consistentes
+import { exerciseSetController } from '../controllers';
 
 const router = Router();
 
+// Usar el controller consolidado
+const {
+    obtenerTodos,
+    obtenerPorId,
+    crear,
+    actualizar,
+    eliminar,
+    togglePublicarExerciseSet,
+    obtenerPorInstructor  // Ya disponible como stub en controllers/index
+} = exerciseSetController;
+
 // ============================================================================
-// RUTAS EXERCISE SET - Usando funciones individuales
+// RUTAS DE EXERCISE SETS
 // ============================================================================
 
-// Crear Exercise Set
-// POST /api/exercise-set
-router.post('/', crear);
+// GET - Listar todos los exercise sets
+router.get('/', obtenerTodos);
 
-// Obtener Exercise Set por ID
-// GET /api/exercise-set/:esid
-router.get('/:esid', obtenerPorId);
-
-// Obtener Exercise Sets por instructor
-// GET /api/exercise-set/instructor/:uid
+// GET - Obtener exercise sets por instructor
 router.get('/instructor/:uid', obtenerPorInstructor);
 
-// Actualizar Exercise Set
-// PUT /api/exercise-set/:esid
-router.put('/:esid', actualizar);
+// GET - Obtener exercise set por ID
+router.get('/:id', obtenerPorId);
 
-// Eliminar Exercise Set
-// DELETE /api/exercise-set/:esid
-router.delete('/:esid', eliminar);
+// POST - Crear nuevo exercise set
+router.post('/', crear);
+
+// PUT - Actualizar exercise set
+router.put('/:id', actualizar);
+
+// DELETE - Eliminar exercise set (soft delete)
+router.delete('/:id', eliminar);
+
+// PATCH - Toggle publicar/despublicar exercise set
+router.patch('/:id/publish', togglePublicarExerciseSet);
 
 export default router;
