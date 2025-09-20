@@ -5,15 +5,15 @@
 // Propósito: CRUD completo para Exercise Sets con funciones individuales
 // Compatible con tipos compartidos y estructura de rutas
 
-import { Request, Response } from 'express';
+import e, { Request, Response } from 'express';
 import {
     ApiResponse,
     ExerciseSetBase,
     CreateExerciseSetRequest,
     PaginatedResponse,
-    ValidationError,
-    ValidationErrors
+    ValidationError
 } from '../types/shared';
+import { ExerciseSet } from '@/models';
 
 // ============================================================================
 // OBTENER TODOS LOS EXERCISE SETS
@@ -212,41 +212,47 @@ export const crearExerciseSet = async (req: Request, res: Response): Promise<voi
             return;
         }
 
+        console.log('PASO')
         // TODO: Cuando tengamos el modelo, crear exercise set real
         // const nuevoExerciseSet = new ExerciseSet({
-        //   titulo: exerciseData.titulo.trim(),
-        //   descripcion: exerciseData.descripcion.trim(),
-        //   instrucciones: exerciseData.instrucciones?.trim(),
-        //   configuracion: exerciseData.configuracion,
-        //   cursoId: exerciseData.cursoId,
-        //   autorId: req.user?.id, // Del middleware de autenticación
-        //   estado: 'draft',
-        //   activo: true,
-        //   publicado: false
+        //     titulo: exerciseData.titulo.trim(),
+        //     descripcion: exerciseData.descripcion.trim(),
+        //     instrucciones: exerciseData.instrucciones?.trim(),
+        //     configuracion: exerciseData.configuracion,
+        //     cursoId: exerciseData.cursoId,
+        //     // autorId: req.user?.id, // Del middleware de autenticación
+        //     autorId: 'exerciseData.uid', // Temporal hasta tener auth
+        //     estado: 'draft',
+        //     activo: true,
+        //     publicado: false
         // });
-        // const exerciseSetCreado = await nuevoExerciseSet.save();
+
+        const nuevoExerciseSet = new ExerciseSet(exerciseData)
+        const exerciseSetCreado = await nuevoExerciseSet.save();
+
+        console.log(exerciseSetCreado)
 
         // TEMPORAL: Simular creación
-        const exerciseSetCreado: ExerciseSetBase = {
-            id: '507f1f77bcf86cd7994390' + Math.random().toString(36).substr(2, 2),
-            titulo: exerciseData.titulo.trim(),
-            descripcion: exerciseData.descripcion.trim(),
-            preguntas: [],
-            configuracion: exerciseData.configuracion,
-            estado: 'draft',
-            activo: true,
-            publicado: false,
-            fechaCreacion: new Date(),
-            fechaActualizacion: new Date(),
-            autorId: 'temp-user-id',
-            ...(exerciseData.instrucciones && { instrucciones: exerciseData.instrucciones.trim() }),
-            ...(exerciseData.cursoId && { cursoId: exerciseData.cursoId })
-        };
+        // const exerciseSetCreado: ExerciseSetBase = {
+        //     id: '507f1f77bcf86cd7994390' + Math.random().toString(36).substr(2, 2),
+        //     titulo: exerciseData.titulo.trim(),
+        //     descripcion: exerciseData.descripcion.trim(),
+        //     preguntas: [],
+        //     configuracion: exerciseData.configuracion,
+        //     estado: 'draft',
+        //     activo: true,
+        //     publicado: false,
+        //     fechaCreacion: new Date(),
+        //     fechaActualizacion: new Date(),
+        //     autorId: 'temp-user-id',
+        //     ...(exerciseData.instrucciones && { instrucciones: exerciseData.instrucciones.trim() }),
+        //     ...(exerciseData.cursoId && { cursoId: exerciseData.cursoId })
+        // };
 
         const response: ApiResponse<ExerciseSetBase> = {
             ok: true,
             message: 'Exercise set creado correctamente',
-            data: exerciseSetCreado
+            // data: exerciseSetCreado
         };
 
         res.status(201).json(response);
